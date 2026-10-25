@@ -7,3 +7,6 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+.local-state/
+*.dpapi
+token-cache.json

@@ -34,7 +34,8 @@ src/
 
   auth/
     device-code.ts   MSAL PublicClientApplication + device-code login
-    token-cache.ts   ICachePlugin → file at ~/.config/microsoft-todo-mcp/ (0600)
+    token-cache.ts   ICachePlugin → Windows DPAPI / POSIX file (0600), atomic writes
+    windows-dpapi.ts Windows DPAPI CurrentUser via a fixed PowerShell program and pipes
     auth-state.ts    AuthManager — the explicit auth state machine + TokenProvider
   graph/
     client.ts        fetch + Bearer + client-request-id + retry/throttle + error mapping
@@ -73,7 +74,7 @@ uninitialized ──init w/ cached account──▶ token_expired ──silent r
 
 - **Login** is a separate CLI command (`microsoft-todo-mcp login`) using the device-code flow — never raced inside a tool call. Public client → **no client secret anywhere**. In `serve`, a tool call that needs a token but can't get one returns a structured `auth_required` / `auth_expired` error telling the user to run `login`; the server never pops a device-code prompt on its own.
 - **Scopes:** `Tasks.ReadWrite` by default; `--scope-readonly` requests only `Tasks.Read` (a genuinely read-only token, not just a runtime gate). `offline_access` is added by MSAL for the refresh token.
-- **Token cache:** MSAL `ICachePlugin` → JSON file with `0600` perms (`MS_TODO_TOKEN_CACHE` to relocate). Refresh token = the sensitive artifact; treat the file like an SSH key. (OS-keychain storage via `keytar` is a deliberate non-default — native-dependency friction, especially on Linux/CI; planned as opt-in for v0.3.)
+- **Token cache:** Windows использует DPAPI CurrentUser через системный PowerShell без профиля: секрет передаётся через stdin/stdout, шифрование не требует отдельного ключа. Кеш `.dpapi` записывается атомарно; при ошибке защиты открытая запись запрещена. POSIX сохраняет JSON с правами `0600`. `MS_TODO_TOKEN_CACHE` задаёт путь. Папка Windows ограничивается ACL через `scripts/protect-cache.ps1`.
 - **Accounts:** the default client id is Microsoft's well-known *Graph CLI* public client (multi-tenant + personal Microsoft accounts), authority `…/common`; `MS_TODO_CLIENT_ID` swaps in your own registration. Personal `@outlook.com` To Do works.
 
 ## 4. Graph HTTP layer

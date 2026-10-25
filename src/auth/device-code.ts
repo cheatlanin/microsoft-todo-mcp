@@ -14,7 +14,7 @@ export interface DeviceCodeInfo {
   expiresIn: number;
 }
 
-export function createPca(config: AppConfig, logger: Logger): PublicClientApplication {
+export async function createPca(config: AppConfig, logger: Logger): Promise<PublicClientApplication> {
   if (!config.clientId) {
     throw new AppError(
       "config_error",
@@ -23,7 +23,7 @@ export function createPca(config: AppConfig, logger: Logger): PublicClientApplic
   }
   return new PublicClientApplication({
     auth: { clientId: config.clientId, authority: config.authority },
-    cache: { cachePlugin: fileCachePlugin(config.tokenCachePath) },
+    cache: { cachePlugin: await fileCachePlugin(config.tokenCachePath) },
     system: {
       loggerOptions: {
         piiLoggingEnabled: false,

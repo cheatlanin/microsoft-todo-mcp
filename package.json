@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
   "scripts": {
     "build": "tsup",
@@ -45,17 +45,21 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@azure/msal-node": "^2.16.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "zod": "^3.23.8"
+    "@azure/msal-node": "7.1.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "24.19.2",
     "eslint": "^9.17.0",
     "fast-check": "^3.23.0",
-    "tsup": "^8.3.5",
+    "tsup": "8.5.1",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
-    "vitest": "^2.1.8"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
   }
 }
