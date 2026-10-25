@@ -26,6 +26,15 @@ PowerShell через stdin/stdout; токен не попадает в аргу
 кеш JSON с правами `0600`; DPAPI не заявляется как межплатформенная защита.
 Для первой проверки используйте `--readonly --scope-readonly` с отдельным кешем.
 
+## Сетевые запросы авторизации
+
+Запросы Microsoft identity ограничены 15 секундами, включая чтение тела ответа.
+Повторяются только GET, создание device code и опрос device-code grant (не более
+трёх попыток). Одноразовый authorization code и refresh-запросы с неизвестным
+результатом не повторяются. Перед отправкой разрешены HTTPS origin настроенного
+authority, `login.microsoftonline.com` и `login.live.com`; перенаправления запрещены.
+Содержимое запросов OAuth и ответов с токенами не записывается в журнал.
+
 ## Reporting a vulnerability
 
 Please **don't** open a public issue for security problems. Instead, open a private security advisory:
