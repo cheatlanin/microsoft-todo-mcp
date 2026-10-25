@@ -22,7 +22,7 @@ export async function runServer(config: AppConfig = loadConfig()): Promise<void>
 
   // A missing client id is a config problem, not a crash: start the server anyway and let
   // `auth_status` and any Graph-touching tool report `config_error` clearly.
-  const pca = config.clientId ? createPca(config, logger) : null;
+  const pca = config.clientId ? await createPca(config, logger) : null;
   const configError = pca ? undefined : "No Microsoft Entra client ID configured. Set MS_TODO_CLIENT_ID (see docs/ENTRA-APP-SETUP.md).";
   const auth = new AuthManager(pca, scopesFor(config), logger, () => systemClock.now(), configError);
   await auth.init();

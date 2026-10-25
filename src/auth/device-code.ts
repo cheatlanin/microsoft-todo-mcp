@@ -4,6 +4,7 @@ import { fileCachePlugin } from "./token-cache";
 import { AppError } from "../graph/errors";
 import type { AppConfig } from "../config";
 import type { Logger } from "../lib/logger";
+import { createAuthNetworkClient } from "./network";
 
 /** The bits of MSAL's device-code response we surface (a subset of `DeviceCodeResponse`). */
 export interface DeviceCodeInfo {
@@ -14,7 +15,7 @@ export interface DeviceCodeInfo {
   expiresIn: number;
 }
 
-export function createPca(config: AppConfig, logger: Logger): PublicClientApplication {
+export async function createPca(config: AppConfig, logger: Logger): Promise<PublicClientApplication> {
   if (!config.clientId) {
     throw new AppError(
       "config_error",
@@ -23,8 +24,9 @@ export function createPca(config: AppConfig, logger: Logger): PublicClientApplic
   }
   return new PublicClientApplication({
     auth: { clientId: config.clientId, authority: config.authority },
-    cache: { cachePlugin: fileCachePlugin(config.tokenCachePath) },
+    cache: { cachePlugin: await fileCachePlugin(config.tokenCachePath) },
     system: {
+      networkClient: createAuthNetworkClient(config),
       loggerOptions: {
         piiLoggingEnabled: false,
         logLevel: LogLevel.Warning,

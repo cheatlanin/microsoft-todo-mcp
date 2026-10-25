@@ -1,14 +1,23 @@
 # microsoft-todo-mcp
 
+> **Локальный форк с исправлениями безопасности.** Запускайте собранный
+> `node dist/index.js`, а не исходный пакет из npm: он не содержит этих изменений.
+> На Windows кеш защищён DPAPI CurrentUser. Перед первым входом настройте ACL
+> папки кеша через `scripts/protect-cache.ps1`; проверка соединения без авторизации:
+> `node scripts/smoke-mcp.mjs`. Подробности — [SECURITY.md](SECURITY.md).
+
 [![npm](https://img.shields.io/npm/v/microsoft-todo-mcp.svg)](https://www.npmjs.com/package/microsoft-todo-mcp) [![CI](https://github.com/fabienbutz/microsoft-todo-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/fabienbutz/microsoft-todo-mcp/actions/workflows/ci.yml)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for **Microsoft To Do**, built on the Microsoft Graph API. Lets an MCP client (Claude Desktop, Claude Code, …) read and manage your To Do lists, tasks, and checklist items.
 
-> **Install.** Add it to your MCP client config (below) and run `npx -y microsoft-todo-mcp login` once. No separate install — `npx` ships with Node.js. By default it authenticates with the well-known **Microsoft Graph CLI** public client id, so there's nothing to register; set `MS_TODO_CLIENT_ID` to use [your own Entra app](docs/ENTRA-APP-SETUP.md) instead. (To run an unpublished commit, use `github:fabienbutz/microsoft-todo-mcp` as the spec instead of `microsoft-todo-mcp`.)
+> **Установка форка.** Используйте локальную копию этого репозитория:
+> `npm ci --ignore-scripts`, затем `npm run build`. Для входа запускайте
+> `node dist/index.js login --scope-readonly`. Инструкции ниже с `npx` относятся
+> к исходному проекту и не устанавливают исправления этого форка.
 
 ## What it can access
 
-Delegated Microsoft Graph scope `Tasks.ReadWrite` — **your own To Do lists and tasks, nothing else** (no mail, no files, no calendar). No telemetry, no phone-home: logs go to stderr on your machine and nowhere else. The refresh token is cached at `~/.config/microsoft-todo-mcp/token-cache.json` with `0600` permissions — treat it like an SSH key.
+Delegated Microsoft Graph scope `Tasks.ReadWrite` — **your own To Do lists and tasks, nothing else** (no mail, no files, no calendar). No telemetry, no phone-home: logs go to stderr on your machine and nowhere else. Windows stores the cache in `token-cache.dpapi` encrypted for the current OS user. POSIX uses `token-cache.json` with `0600` permissions.
 
 By default the app identity shown on the Microsoft sign-in / consent screen is *Microsoft Graph Command Line Tools* (Microsoft's well-known public client); the token it issues is still limited to `Tasks.ReadWrite`. Set `MS_TODO_CLIENT_ID` if you'd rather it be your own named app.
 
@@ -77,7 +86,7 @@ Pass flags after the package spec, e.g. `"args": ["-y", "microsoft-todo-mcp", "-
 | --- | --- | --- |
 | `MS_TODO_CLIENT_ID` | Microsoft Graph CLI well-known client id | Set to use your own Entra app registration (see [`docs/ENTRA-APP-SETUP.md`](docs/ENTRA-APP-SETUP.md)). |
 | `MS_TODO_AUTHORITY` | `https://login.microsoftonline.com/common` | Use `.../<tenant-id>` for a single-tenant app. |
-| `MS_TODO_TOKEN_CACHE` | `~/.config/microsoft-todo-mcp/token-cache.json` | Where the refresh token is stored (`0600`). |
+| `MS_TODO_TOKEN_CACHE` | `~/.config/microsoft-todo-mcp/token-cache.dpapi` on Windows; `token-cache.json` on POSIX | Protected cache location; see SECURITY.md. |
 | `MS_TODO_MAX_RESULTS` | `200` | Soft cap on items returned by list tools (page-granular). |
 | `MS_TODO_GRAPH_BASE` | `https://graph.microsoft.com/v1.0` | Override for sovereign clouds / testing. |
 | `LOG_LEVEL` | `info` | `silent` \| `error` \| `warn` \| `info` \| `debug`. Logs are JSON on stderr. |

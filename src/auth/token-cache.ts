@@ -1,33 +1,44 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import type { ICachePlugin, TokenCacheContext } from "@azure/msal-node";
+import { windowsDpapi } from "./windows-dpapi";
+import { AppError } from "../graph/errors";
 
 /**
- * Persists the MSAL token cache (which holds the refresh token) to a file with `0600`
- * permissions. Treat that file like an SSH private key. A missing file is normal (not yet
- * signed in); a corrupt file is tolerated — we start with an empty cache and the next
- * successful login overwrites it.
+ * Windows uses OS DPAPI persistence, scoped to the current OS user.
+ * POSIX retains a local file protected with 0600 permissions. There is no plaintext
+ * fallback on Windows if native protection cannot be initialized.
  */
-export function fileCachePlugin(path: string): ICachePlugin {
+export async function fileCachePlugin(path: string): Promise<ICachePlugin> {
   return {
     async beforeCacheAccess(ctx: TokenCacheContext): Promise<void> {
-      let data: string;
+      let persisted: Buffer;
       try {
-        data = await readFile(path, "utf-8");
+        persisted = await readFile(path);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
         throw err;
       }
+      const data = process.platform === "win32" ? await windowsDpapi(persisted, "Unprotect") : persisted;
       try {
-        ctx.tokenCache.deserialize(data);
+        ctx.tokenCache.deserialize(data.toString("utf8"));
       } catch {
-        // Corrupt cache — ignore it and start fresh rather than crashing.
+        throw new AppError("internal_error", "Token cache is invalid. Sign out and sign in again.");
       }
     },
     async afterCacheAccess(ctx: TokenCacheContext): Promise<void> {
       if (!ctx.cacheHasChanged) return;
+      const serialized = Buffer.from(ctx.tokenCache.serialize(), "utf8");
+      const persisted = process.platform === "win32" ? await windowsDpapi(serialized, "Protect") : serialized;
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-      await writeFile(path, ctx.tokenCache.serialize(), { mode: 0o600 });
+      const temporary = `${path}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporary, persisted, { mode: 0o600, flag: "wx" });
+        await rename(temporary, path);
+      } finally {
+        await unlink(temporary).catch((err: NodeJS.ErrnoException) => { if (err.code !== "ENOENT") throw err; });
+      }
     },
   };
 }
