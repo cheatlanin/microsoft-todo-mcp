@@ -64,6 +64,8 @@ export class GraphClient {
       try {
         res = await this.fetchImpl(url, {
           method,
+          // Never let an authenticated request follow a redirect to another endpoint.
+          redirect: "error",
           headers: {
             Authorization: `Bearer ${token}`,
             "client-request-id": clientRequestId,
@@ -134,7 +136,26 @@ export class GraphClient {
   }
 
   private buildUrl(pathOrUrl: string, query?: RequestOptions["query"]): string {
-    const url = new URL(pathOrUrl.startsWith("http") ? pathOrUrl : this.deps.config.graphBase + pathOrUrl);
+    let base: URL;
+    try {
+      base = new URL(this.deps.config.graphBase);
+    } catch {
+      throw new AppError("config_error", "MS_TODO_GRAPH_BASE must be a valid HTTPS URL.");
+    }
+    if (base.protocol !== "https:" || base.username || base.password || base.search || base.hash) {
+      throw new AppError("config_error", "MS_TODO_GRAPH_BASE must use HTTPS without credentials, a query, or a fragment.");
+    }
+
+    let url: URL;
+    try {
+      url = new URL(pathOrUrl.startsWith("/") ? base.href.replace(/\/+$/, "") + pathOrUrl : pathOrUrl);
+    } catch {
+      throw new AppError("validation_error", "Invalid Microsoft Graph request URL.");
+    }
+    // Cursors and nextLink values are untrusted. Validate before requesting a token.
+    if (url.protocol !== "https:" || url.origin !== base.origin || url.username || url.password || url.hash) {
+      throw new AppError("validation_error", "Microsoft Graph request URL must use the configured HTTPS origin without credentials or a fragment.");
+    }
     if (query) {
       for (const [key, value] of Object.entries(query)) {
         if (value !== undefined) url.searchParams.set(key, String(value));
